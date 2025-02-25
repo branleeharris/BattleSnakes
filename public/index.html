@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Snake Battle</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Press+Start+2P&display=swap');
+        
+        :root {
+            --primary-blue: #3498db;
+            --primary-red: #e74c3c;
+            --background-dark: #1a1a2e;
+            --game-bg: #16213e;
+            --grid-lines: #30385e;
+            --food-color: #2ecc71;
+            --text-color: #ecf0f1;
+            --scoreboard-bg: rgba(0, 0, 0, 0.5);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: var(--background-dark);
+            color: var(--text-color);
+            background-image: radial-gradient(circle, #292958 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 2.2rem;
+            margin: 20px 0;
+            text-align: center;
+            color: white;
+            text-shadow: 0 0 10px rgba(0, 0, 255, 0.7), 
+                         0 0 20px rgba(255, 0, 0, 0.7);
+            letter-spacing: 1px;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 0, 255, 0.3), 
+                        0 0 50px rgba(255, 0, 0, 0.3);
+            overflow: hidden;
+            border: 3px solid #565695;
+        }
+        
+        #game-canvas {
+            background-color: var(--game-bg);
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #score-board {
+            display: flex;
+            justify-content: space-between;
+            width: 500px;
+            margin-bottom: 20px;
+        }
+        
+        .score-container {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            width: 48%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #p1-score {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.7), rgba(52, 152, 219, 0.2));
+            border-left: 4px solid var(--primary-blue);
+        }
+        
+        #p2-score {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.7), rgba(231, 76, 60, 0.2));
+            border-left: 4px solid var(--primary-red);
+        }
+        
+        .score-container h3 {
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+        
+        .score-container p {
+            margin: 5px 0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .score-value, .length-value, .bullets-value {
+            font-weight: 900;
+            margin-left: 8px;
+            min-width: 30px;
+        }
+        
+        .bullet-icon {
+            display: inline-block;
+            margin-right: 3px;
+            color: white;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+        }
+        
+        #winner-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            color: white;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            max-width: 90%;
+        }
+        
+        #final-score {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            color: #ddd;
+        }
+        
+        #restart-button {
+            font-family: 'Press Start 2P', cursive;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            background: linear-gradient(45deg, #3498db, #e74c3c);
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        #restart-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        #restart-button:active {
+            transform: translateY(1px);
+        }
+        
+        #instructions {
+            margin-top: 25px;
+            background: rgba(26, 26, 46, 0.6);
+            padding: 15px 25px;
+            border-radius: 8px;
+            max-width: 500px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+        }
+        
+        #instructions h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: #f1c40f;
+        }
+        
+        #instructions p {
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        #instructions p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-key {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 2px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-weight: bold;
+            box-shadow: 0 2px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .power-up {
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-icon {
+            margin-right: 8px;
+            font-size: 1rem;
+        }
+        
+        /* Lobby styles */
+        #lobby {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0, 0, 255, 0.3), 
+                        0 0 50px rgba(255, 0, 0, 0.3);
+            z-index: 100;
+            display: none;
+        }
+        
+        #lobby h2 {
+            font-family: 'Press Start 2P', cursive;
+            text-align: center;
+            color: #f1c40f;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        #lobby h3 {
+            color: #3498db;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        #player-name-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        #player-name-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .lobby-button {
+            padding: 10px 15px;
+            margin: 5px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .lobby-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .lobby-button:active {
+            transform: translateY(0);
+        }
+        
+        #set-name-button {
+            background: #3498db;
+            color: white;
+        }
+        
+        #toggle-role-button {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        #start-game-button {
+            background: #2ecc71;
+            color: white;
+            display: none;
+        }
+        
+        #player-list, #spectator-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        
+        #player-list li, #spectator-list li {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .host-badge {
+            background: #f1c40f;
+            color: #333;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 10px;
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .connected {
+            background: #2ecc71;
+        }
+        
+        .connecting {
+            background: #f1c40f;
+        }
+        
+        .disconnected {
+            background: #e74c3c;
+        }
+        
+        #game-mode-selection {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(0, 0, 255, 0.3), 
+                        0 0 50px rgba(255, 0, 0, 0.3);
+        }
+        
+        #game-mode-selection h2 {
+            font-family: 'Press Start 2P', cursive;
+            color: #f1c40f;
+            margin-bottom: 20px;
+        }
+        
+        .mode-button {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            border: nonemargin: 10px;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #host-button {
+            background: #3498db;
+            color: white;
+        }
+        
+        #join-button {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .mode-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .game-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+            z-index: 50;
+            font-family: 'Press Start 2P', cursive;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .show-message {
+            opacity: 1;
+        }
+        
+        @media (max-width: 550px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            #game-container, #score-board {
+                width: 100%;
+                max-width: 500px;
+            }
+            
+            #game-container {
+                height: auto;
+                aspect-ratio: 1/1;
+            }
+            
+            #instructions {
+                padding: 10px 15px;
+            }
+            
+            #lobby {
+                width: 90%;
+                max-width: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>SNAKE BATTLE</h1>
+    
+    <div id="score-board">
+        <div class="score-container" id="p1-score">
+            <h3><i class="fas fa-dragon status-icon"></i>You</h3>
+            <p><i class="fas fa-trophy status-icon"></i>Score: <span id="p1-score-value" class="score-value">0</span></p>
+            <p><i class="fas fa-ruler status-icon"></i>Length: <span id="p1-length" class="length-value">3</span></p>
+            <p><i class="fas fa-crosshairs status-icon"></i>Bullets: 
+                <span id="p1-bullets-display">
+                    <span class="bullet-icon"><i class="fas fa-circle"></i></span>
+                    <span class="bullet-icon"><i class="fas fa-circle"></i></span>
+                    <span class="bullet-icon"><i class="fas fa-circle"></i></span>
+                </span>
+            </p>
+        </div>
+        <div class="score-container" id="p2-score">
+            <h3><i class="fas fa-fire status-icon"></i>Opponent</h3>
+            <p><i class="fas fa-trophy status-icon"></i>Score: <span id="p2-score-value" class="score-value">0</span></p>
+            <p><i class="fas fa-ruler status-icon"></i>Length: <span id="p2-length" class="length-value">3</span></p>
+            <p><i class="fas fa-crosshairs status-icon"></i>Bullets: 
+                <span id="p2-bullets-display">
+                    <span class="bullet-icon"><i class="fas fa-circle"></i></span>
+                    <span class="bullet-icon"><i class="fas fa-circle"></i></span>
+                    <span class="bullet-icon"><i class="fas fa-circle"></i></span>
+                </span>
+            </p>
+        </div>
+    </div>
+    
+    <div id="game-container">
+        <canvas id="game-canvas" width="500" height="500"></canvas>
+        <div id="game-over">
+            <h2 id="winner-text">Game Over!</h2>
+            <p id="final-score"></p>
+            <button id="restart-button">Play Again</button>
+        </div>
+        <div id="game-message" class="game-message"></div>
+    </div>
+    
+    <div id="instructions">
+        <h3>How to Play</h3>
+        <p>Use <span class="control-key">W</span><span class="control-key">A</span><span class="control-key">S</span><span class="control-key">D</span> to move, <span class="control-key">Q</span> to shoot.</p>
+        <p><strong>Special Rules:</strong> Eat food for points. Avoid collisions. Shoot bullets (3 max, refills every minute). Headshot kills, body shot breaks snake.</p>
+    </div>
+    
+    <div id="connection-status" class="connection-status">
+        <span id="status-dot" class="status-dot disconnected"></span>
+        <span id="status-text">Disconnected</span>
+    </div>
+
+    <script>
+        // Constants
+        const GRID_SIZE = 20;
+        const GRID_COUNT = 25;
+        const MAX_BULLETS = 3;
+        
+        // DOM elements
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverScreen = document.getElementById('game-over');
+        const winnerText = document.getElementById('winner-text');
+        const finalScore = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+        const gameMessage = document.getElementById('game-message');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        
+        // Game state
+        let ws;
+        let playerId = null;
+        let role = null;
+        let playerName = null;
+        let hostId = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let reconnectTimeout = null;
+        
+        let gameState = { 
+            players: {}, 
+            foods: [], 
+            spectators: [],
+            gameRunning: false 
+        };
+        
+        // Start the application
+        window.onload = function() {
+            showGameModeSelection();
+            
+            // Event listeners
+            restartButton.addEventListener('click', function() {
+                hideGameOver();
+                showLobby();
+            });
+            
+            // Listen for keyboard inputs
+            document.addEventListener('keydown', handleKeyPress);
+        };
+        
+        // Show game mode selection screen
+        function showGameModeSelection() {
+            // Remove existing one if present
+            const existingSelection = document.getElementById('game-mode-selection');
+            if (existingSelection) existingSelection.remove();
+            
+            // Create a new selection screen
+            const selectionDiv = document.createElement('div');
+            selectionDiv.id = 'game-mode-selection';
+            selectionDiv.innerHTML = `
+                <h2>Select Game Mode</h2>
+                <button id="join-button" class="mode-button">Play Game</button>
+            `;
+            document.body.appendChild(selectionDiv);
+            
+            // Add event listeners
+            document.getElementById('join-button').addEventListener('click', joinGame);
+            
+            // Hide other game elements
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('score-board').style.display = 'none';
+            
+            // Update connection status
+            updateConnectionStatus('disconnected', 'Disconnected');
+        }
+        
+        // Join an existing game
+        function joinGame() {
+            document.getElementById('game-mode-selection').remove();
+            connectToServer('same-origin');
+        }
+        
+        // Connect to WebSocket server
+        function connectToServer(ip) {
+            if (ws) {
+                ws.close();
+            }
+            
+            updateConnectionStatus('connecting', 'Connecting...');
+            
+            try {
+                // Use secure WebSocket (wss://) for HTTPS sites
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                // If connecting to the same host that serves the page
+                const serverUrl = ip === 'same-origin' ? 
+                    `${protocol}//${window.location.host}` : 
+                    `${protocol}//${ip}`;
+                    
+                ws = new WebSocket(serverUrl);
+                
+                ws.onopen = () => {
+                    console.log('Connected to server');
+                    updateConnectionStatus('connected', 'Connected');
+                    reconnectAttempts = 0;
+                };
+                
+                ws.onclose = (event) => {
+                    console.log('Disconnected from server:', event.code, event.reason);
+                    updateConnectionStatus('disconnected', 'Disconnected');
+                    
+                    // Attempt to reconnect
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        showMessage(`Connection lost. Reconnecting (${reconnectAttempts}/${maxReconnectAttempts})...`, 2000);
+                        
+                        reconnectTimeout = setTimeout(() => {
+                            connectToServer(ip);
+                        }, 2000);
+                    } else {
+                        showMessage("Failed to reconnect. Please try again.", 3000);
+                        showGameModeSelection();
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('disconnected', 'Connection Error');
+                    showMessage("Connection error. Please check the server.", 3000);
+                };
+                
+                ws.onmessage = handleServerMessage;
+                
+                // Create or show lobby
+                createLobby();
+                showLobby();
+                
+            } catch (err) {
+                console.error('Error connecting to server:', err);
+                showMessage("Failed to connect. Please check the server.", 3000);
+                showGameModeSelection();
+            }
+        }
+        
+        // Handle messages from the server
+        function handleServerMessage(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                switch (data.type) {
+                    case 'init':
+                        // Initialize client with server data
+                        playerId = data.playerId;
+                        role = data.role;
+                        hostId = data.hostId;
+                        
+                        // Automatically generate a default name
+                        playerName = role === 'Server Host' ? 
+                            `Host ${playerId.slice(-4)}` : 
+                            (role === 'Player' ? `Player ${playerId.slice(-4)}` : `Spectator ${playerId.slice(-4)}`);
+                        
+                        // Update the lobby
+                        updateLobby(data.players, data.spectators, data.hostId, data.gameRunning);
+                        
+                        // If the game is already running, join in
+                        if (data.gameRunning) {
+                            gameState.players = data.players;
+                            gameState.foods = data.foods;
+                            gameState.spectators = data.spectators;
+                            gameState.gameRunning = true;
+                            
+                            hideLobby();
+                            drawGame();
+                            updateScoreboard();
+                        }
+                        
+                        console.log(`Initialized as ${role} with ID ${playerId}`);
+                        break;
+                        
+                    case 'updateLobby':
+                        // Update lobby with latest player/spectator info
+                        updateLobby(data.players, data.spectators, data.hostId, data.gameRunning);
+                        
+                        // Ensure role is updated if changed on server
+                        if (data.players && data.players[playerId]) {
+                            role = playerId === data.hostId ? 'Server Host' : 'Player';
+                        } else if (data.spectators && data.spectators[playerId]) {
+                            role = 'Spectator';
+                        }
+                        
+                        // Show lobby if game isn't running
+                        if (!data.gameRunning) {
+                            showLobby();
+                        }
+                        break;
+                        
+                    case 'roleUpdate':
+                        // Handle role change notification
+                        role = data.role;
+                        updateRoleButton();
+                        console.log(`Role changed to ${role}`);
+                        break;
+                        
+                    case 'update':
+                        // Update game state
+                        gameState.players = data.players;
+                        gameState.foods = data.foods;
+                        gameState.spectators = data.spectators;
+                        gameState.gameRunning = data.gameRunning;
+                        hostId = data.hostId;
+                        
+                        drawGame();
+                        updateScoreboard();
+                        break;
+                        
+                    case 'startGame':
+                        // Game has started
+                        gameState.players = data.players;
+                        gameState.foods = data.foods;
+                        gameState.spectators = data.spectators;
+                        gameState.gameRunning = true;
+                        
+                        hideLobby();
+                        hideGameOver();
+                        drawGame();
+                        updateScoreboard();
+                        showMessage("Game Started!", 1500);
+                        break;
+                        
+                    case 'gamePaused':
+                        // Game was paused (e.g., host disconnected)
+                        gameState.gameRunning = false;
+                        showMessage(data.message, 3000);
+                        break;
+                        
+                    case 'gameResumed':
+                        // Game has been resumed
+                        gameState.gameRunning = true;
+                        gameState.players = data.players;
+                        gameState.foods = data.foods;
+                        gameState.spectators = data.spectators;
+                        
+                        showMessage("Game Resumed!", 1500);
+                        break;
+                        
+                    case 'gameOver':
+                        // Game has ended
+                        gameState.gameRunning = false;
+                        
+                        // Display winner and scores
+                        winnerText.textContent = data.message;
+                        
+                        let scoreHtml = '<ul style="list-style: none; padding: 0;">';
+                        Object.entries(data.finalScores).forEach(([id, score]) => {
+                            const playerName = score.name || `Player ${id.slice(-4)}`;
+                            scoreHtml += `<li style="margin: 8px 0; display: flex; justify-content: space-between;">
+                                <span style="color: ${score.color || 'white'}">${playerName}</span>
+                                <span>${score.score}</span>
+                            </li>`;
+                        });
+                        scoreHtml += '</ul>';
+                        
+                        finalScore.innerHTML = scoreHtml;
+                        showGameOver();
+                        
+                        // If not a spectator, show the lobby after delay
+                        if (role !== 'Spectator') {
+                            setTimeout(() => {
+                                hideGameOver();
+                                showLobby();
+                            }, 5000);
+                        }
+                        break;
+                        
+                    case 'updateBullets':
+                        // Bullets have been refilled
+                        gameState.players = data.players;
+                        updateScoreboard();
+                        showMessage("Bullets Refilled!", 1000);
+                        break;
+                        
+                    case 'error':
+                        // Server reported an error
+                        showMessage(data.message, 3000);
+                        console.error("Server error:", data.message);
+                        break;
+                }
+            } catch (err) {
+                console.error('Error processing server message:', err);
+            }
+        }
+        
+        // Handle keyboard input
+        function handleKeyPress(event) {
+            if (!ws || ws.readyState !== WebSocket.OPEN || !gameState.gameRunning) return;
+            
+            const key = event.key.toLowerCase();
+            
+            // Movement controls using WASD
+            if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+                let direction;
+                
+                if (key === 'w') direction = 'up';
+                else if (key === 'a') direction = 'left';
+                else if (key === 's') direction = 'down';
+                else if (key === 'd') direction = 'right';
+                
+                if (direction && (role === 'Player' || role === 'Server Host')) {
+                    ws.send(JSON.stringify({ type: 'direction', direction }));
+                }
+            }
+            
+            // Shooting with Q
+            else if (key === 'q' && (role === 'Player' || role === 'Server Host')) {
+                ws.send(JSON.stringify({ type: 'shoot' }));
+            }
+        }
+        
+        // Create the lobby UI
+        function createLobby() {
+            // Remove existing lobby if present
+            const existingLobby = document.getElementById('lobby');
+            if (existingLobby) existingLobby.remove();
+            
+            // Create a new lobby
+            const lobbyDiv = document.createElement('div');
+            lobbyDiv.id = 'lobby';
+            lobbyDiv.innerHTML = `
+                <h2>SNAKE BATTLE Lobby</h2>
+                
+                <input type="text" id="player-name-input" placeholder="Enter your name">
+                
+                <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                    <button id="set-name-button" class="lobby-button">Set Name</button>
+                    <button id="toggle-role-button" class="lobby-button">Toggle Role</button>
+                    <button id="start-game-button" class="lobby-button">Start Game</button>
+                </div>
+                
+                <h3>Players</h3>
+                <ul id="player-list"></ul>
+                
+                <h3>Spectators</h3>
+                <ul id="spectator-list"></ul>
+            `;
+            
+            document.body.appendChild(lobbyDiv);
+            
+            // Add event listeners
+            document.getElementById('set-name-button').addEventListener('click', setPlayerName);
+            document.getElementById('toggle-role-button').addEventListener('click', toggleRole);
+            document.getElementById('start-game-button').addEventListener('click', startGame);
+            
+            // Set initial role button text
+            updateRoleButton();
+        }
+        
+        // Show the lobby screen
+        function showLobby() {
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('score-board').style.display = 'none';
+            
+            const lobby = document.getElementById('lobby');
+            if (!lobby) {
+                createLobby();
+            }
+            document.getElementById('lobby').style.display = 'block';
+        }
+        
+        // Hide the lobby screen
+        function hideLobby() {
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('score-board').style.display = 'flex';
+            document.getElementById('lobby').style.display = 'none';
+        }
+        
+        // Update the lobby player lists
+        function updateLobby(players, spectators, newHostId, gameRunning) {
+            // Update host ID if provided
+            if (newHostId) hostId = newHostId;
+            
+            const playerList = document.getElementById('player-list');
+            const spectatorList = document.getElementById('spectator-list');
+            const startButton = document.getElementById('start-game-button');
+            
+            if (!playerList || !spectatorList) return;
+            
+            playerList.innerHTML = '';
+            spectatorList.innerHTML = '';
+            
+            // Update player list
+            Object.values(players || {}).forEach(player => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span style="color: ${player.color || 'white'}">${player.name || 'Unnamed'}</span>
+                    <div>
+                        <span>Score: ${player.score || 0}</span>
+                        ${player.playerId === hostId ? '<span class="host-badge">HOST</span>' : ''}
+                    </div>
+                `;
+                playerList.appendChild(li);
+            });
+            
+            // Update spectator list
+            Object.values(spectators || {}).forEach(spectator => {
+                const li = document.createElement('li');
+                li.textContent = spectator.name || 'Unnamed Spectator';
+                spectatorList.appendChild(li);
+            });
+            
+            // Show/hide Start Game button based on role
+            if (startButton) {
+                startButton.style.display = (role === 'Server Host' && !gameRunning) ? 'inline-block' : 'none';
+            }
+            
+            // Update role button
+            updateRoleButton();
+        }
+        
+        // Update the role toggle button text and color
+        function updateRoleButton() {
+            const roleButton = document.getElementById('toggle-role-button');
+            if (!roleButton) return;
+            
+            if (role === 'Player' || role === 'Server Host') {
+                roleButton.textContent = 'Become Spectator';
+                roleButton.style.background = '#e74c3c';
+            } else {
+                roleButton.textContent = 'Become Player';
+                roleButton.style.background = '#2ecc71';
+            }
+            
+            // Disable button if host
+            roleButton.disabled = role === 'Server Host' && Object.keys(gameState.players || {}).length <= 1;
+            roleButton.style.opacity = roleButton.disabled ? '0.5' : '1';
+        }
+        
+        // Set player name
+        function setPlayerName() {
+            const nameInput = document.getElementById('player-name-input');
+            if (!nameInput) return;
+            
+            const name = nameInput.value.trim();
+            if (name && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'setName', name }));
+                playerName = name;
+                nameInput.value = '';
+            } else {
+                showMessage("Please enter a valid name", 2000);
+            }
+        }
+        
+        // Toggle between Player and Spectator roles
+        function toggleRole() {
+            if (role === 'Server Host' && Object.keys(gameState.players || {}).length <= 1) {
+                showMessage("You are the only player. Cannot become spectator.", 2000);
+                return;
+            }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const newRole = (role === 'Player' || role === 'Server Host') ? 'Spectator' : 'Player';
+                ws.send(JSON.stringify({ type: 'setRole', role: newRole }));
+            }
+        }
+        
+        // Start the game (host only)
+        function startGame() {
+            if (role !== 'Server Host') {
+                showMessage("Only the host can start the game", 2000);
+                return;
+            }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'startGame' }));
+            }
+        }
+        
+        // Draw the game state
+        function drawGame() {
+            if (!canvas || !ctx) return;
+            
+            // Clear canvas
+            ctx.fillStyle = '#16213e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#30385e';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= GRID_COUNT; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * GRID_SIZE, 0);
+                ctx.lineTo(i * GRID_SIZE, canvas.height);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, i * GRID_SIZE);
+                ctx.lineTo(canvas.width, i * GRID_SIZE);
+                ctx.stroke();
+            }
+            
+            // Draw food
+            (gameState.foods || []).forEach(food => {
+                ctx.beginPath();
+                ctx.arc(
+                    food.x * GRID_SIZE + GRID_SIZE / 2,
+                    food.y * GRID_SIZE + GRID_SIZE / 2,
+                    (GRID_SIZE / 2) * food.type.size * (1 + (food.pulse || 0)),
+                    0,
+                    Math.PI * 2
+                );
+                ctx.fillStyle = food.type.color;
+                ctx.fill();
+            });
+            
+            // Draw snakes
+            Object.values(gameState.players || {}).forEach(player => {
+                (player.body || []).forEach((segment, index) => {
+                    const isHead = index === 0;
+                    const isTail = index === player.body.length - 1;
+                    
+                    ctx.fillStyle = isHead ? player.headColor : (isTail ? player.tailColor : player.color);
+                    
+                    // Draw segment with rounded corners for head
+                    if (isHead) {
+                        ctx.beginPath();
+                        ctx.arc(
+                            segment.x * GRID_SIZE + GRID_SIZE / 2,
+                            segment.y * GRID_SIZE + GRID_SIZE / 2,
+                            GRID_SIZE / 2 - 1,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(
+                            segment.x * GRID_SIZE + 1,
+                            segment.y * GRID_SIZE + 1,
+                            GRID_SIZE - 2,
+                            GRID_SIZE - 2
+                        );
+                    }
+                    
+                    // Draw eyes on head
+                    if (isHead) {
+                        ctx.fillStyle = 'white';
+                        
+                        let eyeOffsetX, eyeOffsetY;
+                        
+                        switch (player.direction) {
+                            case 'up':
+                                eyeOffsetX = 3;
+                                eyeOffsetY = -3;
+                                break;
+                            case 'down':
+                                eyeOffsetX = 3;
+                                eyeOffsetY = 3;
+                                break;
+                            case 'left':
+                                eyeOffsetX = -3;
+                                eyeOffsetY = 3;
+                                break;
+                            case 'right':
+                                eyeOffsetX = 3;
+                                eyeOffsetY = 3;
+                                break;
+                            default:
+                                eyeOffsetX = 3;
+                                eyeOffsetY = 3;
+                        }
+                        
+                        // Left eye
+                        ctx.beginPath();
+                        ctx.arc(
+                            segment.x * GRID_SIZE + GRID_SIZE/2 - eyeOffsetX,
+                            segment.y * GRID_SIZE + GRID_SIZE/2 - eyeOffsetY,
+                            2,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                        
+                        // Right eye
+                        ctx.beginPath();
+                        ctx.arc(
+                            segment.x * GRID_SIZE + GRID_SIZE/2 + eyeOffsetX,
+                            segment.y * GRID_SIZE + GRID_SIZE/2 - eyeOffsetY,
+                            2,
+                            0,
+                            Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                });
+            });
+            
+            // Draw bullets
+            Object.values(gameState.players || {}).forEach(player => {
+                (player.activeBullets || []).forEach(bullet => {
+                    ctx.beginPath();
+                    ctx.arc(
+                        bullet.x * GRID_SIZE + GRID_SIZE / 2,
+                        bullet.y * GRID_SIZE + GRID_SIZE / 2,
+                        GRID_SIZE / 3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fillStyle = player.color;
+                    ctx.fill();
+                    
+                    // Add glow effect
+                    ctx.beginPath();
+                    ctx.arc(
+                        bullet.x * GRID_SIZE + GRID_SIZE / 2,
+                        bullet.y * GRID_SIZE + GRID_SIZE / 2,
+                        GRID_SIZE / 2,
+                        0,
+                        Math.PI * 2
+                    );
+                    const gradient = ctx.createRadialGradient(
+                        bullet.x * GRID_SIZE + GRID_SIZE / 2,
+                        bullet.y * GRID_SIZE + GRID_SIZE / 2,
+                        GRID_SIZE / 6,
+                        bullet.x * GRID_SIZE + GRID_SIZE / 2,
+                        bullet.y * GRID_SIZE + GRID_SIZE / 2,
+                        GRID_SIZE / 2
+                    );
+                    gradient.addColorStop(0, player.color);
+                    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                });
+            });
+            
+            // Display spectator names
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '12px Orbitron';
+            const spectators = Object.values(gameState.spectators || []);
+            if (spectators.length > 0) {
+                ctx.fillText(`${spectators.length} Spectator${spectators.length > 1 ? 's' : ''}`, 10, canvas.height - 10);
+            }
+        }
+        
+        // Update the scoreboard
+        function updateScoreboard() {
+            const player = gameState.players && gameState.players[playerId];
+            
+            // Find an opponent to display (first player that isn't us)
+            let opponent = null;
+            if (gameState.players) {
+                for (const id in gameState.players) {
+                    if (id !== playerId) {
+                        opponent = gameState.players[id];
+                        break;
+                    }
+                }
+            }
+            
+            // Update player info
+            document.querySelector('#p1-score h3').innerHTML = `<i class="fas fa-dragon status-icon"></i>${playerName || 'You'}`;
+            if (player) {
+                document.getElementById('p1-score-value').textContent = player.score || 0;
+                document.getElementById('p1-length').textContent = player.body ? player.body.length : 0;
+                
+                // Update bullet display
+                let bulletsHtml = '';
+                for (let i = 0; i < player.bullets; i++) {
+                    bulletsHtml += '<span class="bullet-icon"><i class="fas fa-circle"></i></span>';
+                }
+                document.getElementById('p1-bullets-display').innerHTML = bulletsHtml;
+                
+                // Update score container color
+                document.getElementById('p1-score').style.background = 
+                    `linear-gradient(135deg, ${player.color}aa, ${player.color}33)`;
+                document.getElementById('p1-score').style.borderLeft = `4px solid ${player.color}`;
+            }
+            
+            // Update opponent info
+            if (opponent) {
+                document.querySelector('#p2-score h3').innerHTML = 
+                    `<i class="fas fa-fire status-icon"></i>${opponent.name || 'Opponent'}`;
+                document.getElementById('p2-score-value').textContent = opponent.score || 0;
+                document.getElementById('p2-length').textContent = opponent.body ? opponent.body.length :document.getElementById('p2-length').textContent = opponent.body ? opponent.body.length : 0;
+                
+                // Update bullet display
+                let bulletsHtml = '';
+                for (let i = 0; i < opponent.bullets; i++) {
+                    bulletsHtml += '<span class="bullet-icon"><i class="fas fa-circle"></i></span>';
+                }
+                document.getElementById('p2-bullets-display').innerHTML = bulletsHtml;
+                
+                // Update score container color
+                document.getElementById('p2-score').style.background = 
+                    `linear-gradient(135deg, ${opponent.color}aa, ${opponent.color}33)`;
+                document.getElementById('p2-score').style.borderLeft = `4px solid ${opponent.color}`;
+            } else {
+                // No opponent, hide or reset the opponent display
+                document.querySelector('#p2-score h3').innerHTML = 
+                    `<i class="fas fa-fire status-icon"></i>Waiting for opponent`;
+                document.getElementById('p2-score-value').textContent = '0';
+                document.getElementById('p2-length').textContent = '0';
+                document.getElementById('p2-bullets-display').innerHTML = '';
+            }
+        }
+        
+        // Show game over screen
+        function showGameOver() {
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        // Hide game over screen
+        function hideGameOver() {
+            gameOverScreen.style.display = 'none';
+        }
+        
+        // Show a temporary message
+        function showMessage(text, duration = 2000) {
+            if (!gameMessage) return;
+            
+            gameMessage.textContent = text;
+            gameMessage.classList.add('show-message');
+            
+            setTimeout(() => {
+                gameMessage.classList.remove('show-message');
+            }, duration);
+        }
+        
+        // Update connection status indicator
+        function updateConnectionStatus(status, text) {
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = text;
+        }
+        
+        // Clean up resources before unloading the page
+        window.addEventListener('beforeunload', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+            
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+        });
+    </script>
+</body>
+</html>
