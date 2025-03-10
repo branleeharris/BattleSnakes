@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Multiplayer Snake Battle</title>
+    <title>Stealth Snake Battle</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;900&family=Press+Start+2P&display=swap');
@@ -50,8 +50,8 @@
         
         #game-container {
             position: relative;
-            width: 500px;
-            height: 500px;
+            width: 700px;
+            height: 700px;
             border-radius: 8px;
             box-shadow: 0 0 30px rgba(0, 0, 255, 0.3), 
                         0 0 50px rgba(255, 0, 0, 0.3);
@@ -67,10 +67,20 @@
             display: block;
         }
         
+        /* Add visibility overlay canvas */
+        #visibility-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
         #score-board {
             display: flex;
             justify-content: space-between;
-            width: 500px;
+            width: 700px;
             margin-bottom: 20px;
         }
         
@@ -180,7 +190,7 @@
             background: rgba(26, 26, 46, 0.6);
             padding: 15px 25px;
             border-radius: 8px;
-            max-width: 500px;
+            max-width: 700px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(5px);
         }
@@ -307,6 +317,80 @@
             display: none;
         }
         
+        /* Game mode options */
+        #game-mode-options {
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        #game-mode-options h3 {
+            color: #f1c40f;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .mode-toggle:last-child {
+            margin-bottom: 0;
+        }
+        
+        .mode-toggle label {
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        
+        .mode-toggle-slider {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .mode-toggle-slider input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #2ecc71;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
         #player-list, #spectator-list {
             list-style: none;
             padding: 0;
@@ -431,6 +515,19 @@
             opacity: 1;
         }
         
+        /* Game mode indicator */
+        #game-mode-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            z-index: 5;
+        }
+        
         /* Mobile control styles */
         .mobile-instructions {
             margin-top: 10px;
@@ -439,14 +536,14 @@
             color: #f1c40f;
         }
         
-        @media (max-width: 550px) {
+        @media (max-width: 750px) {
             h1 {
                 font-size: 1.5rem;
             }
             
             #game-container, #score-board {
                 width: 100%;
-                max-width: 500px;
+                max-width: 700px;
             }
             
             #game-container {
@@ -466,7 +563,7 @@
     </style>
 </head>
 <body>
-    <h1>SNAKE BATTLE</h1>
+    <h1>STEALTH SNAKE</h1>
     
     <div id="score-board">
         <div class="score-container" id="p1-score">
@@ -496,18 +593,21 @@
     </div>
     
     <div id="game-container">
-        <canvas id="game-canvas" width="500" height="500"></canvas>
+        <canvas id="game-canvas" width="700" height="700"></canvas>
+        <canvas id="visibility-canvas" width="700" height="700"></canvas>
         <div id="game-over">
             <h2 id="winner-text">Game Over!</h2>
             <p id="final-score"></p>
             <button id="restart-button">Play Again</button>
         </div>
         <div id="game-message" class="game-message"></div>
+        <div id="game-mode-indicator"></div>
     </div>
     
     <div id="instructions">
         <h3>How to Play</h3>
         <p>Use <span class="control-key">W</span><span class="control-key">A</span><span class="control-key">S</span><span class="control-key">D</span> to move, <span class="control-key">Q</span> to shoot.</p>
+        <p><strong>Stealth Mode:</strong> You can only see a small area around yourself. The food is visible, but other players are only visible when they enter your light radius.</p>
         <p><strong>Special Rules:</strong> Eat food for points. Avoid collisions. Shoot bullets (3 max, refills every minute). Headshot kills, body shot breaks snake.</p>
     </div>
     
@@ -518,13 +618,23 @@
 
     <script>
         // Constants
-        const GRID_SIZE = 20;
-        const GRID_COUNT = 25;
+        const GRID_SIZE = 14; // Smaller grid size for larger play area
+        const GRID_COUNT = 50; // Much larger grid count (50x50 grid)
         const MAX_BULLETS = 3;
+        const VISIBILITY_RADIUS = 5; // Grid cells visible around player's head
+        const FOOD_VISIBILITY_RADIUS = 3; // Grid cells visible around food
+        
+        // Game mode settings
+        let gameMode = {
+            stealth: true, // Default to stealth mode
+            stealthDarkness: 0.98 // 98% opacity (near pitch black)
+        };
         
         // DOM elements
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
+        const visibilityCanvas = document.getElementById('visibility-canvas');
+        const visCtx = visibilityCanvas.getContext('2d');
         const gameOverScreen = document.getElementById('game-over');
         const winnerText = document.getElementById('winner-text');
         const finalScore = document.getElementById('final-score');
@@ -532,6 +642,7 @@
         const gameMessage = document.getElementById('game-message');
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
+        const gameModeIndicator = document.getElementById('game-mode-indicator');
         
         // Game state
         let ws;
@@ -547,7 +658,8 @@
             players: {}, 
             foods: [], 
             spectators: [],
-            gameRunning: false 
+            gameRunning: false,
+            gameMode: gameMode // Add game mode to game state
         };
         
         // Mobile control variables
@@ -585,6 +697,19 @@
                         event.preventDefault();
                     }
                 }, { passive: false });
+            }
+        }
+        
+        // Update game mode indicator
+        function updateGameModeIndicator() {
+            if (!gameModeIndicator) return;
+            
+            if (gameState.gameMode && gameState.gameMode.stealth) {
+                gameModeIndicator.textContent = "STEALTH MODE";
+                gameModeIndicator.style.backgroundColor = "rgba(231, 76, 60, 0.7)";
+            } else {
+                gameModeIndicator.textContent = "NORMAL MODE";
+                gameModeIndicator.style.backgroundColor = "rgba(46, 204, 113, 0.7)";
             }
         }
         
@@ -713,6 +838,13 @@
                             `Host ${playerId.slice(-4)}` : 
                             (role === 'Player' ? `Player ${playerId.slice(-4)}` : `Spectator ${playerId.slice(-4)}`);
                         
+                        // Initialize game mode if sent by server
+                        if (data.gameMode) {
+                            gameState.gameMode = data.gameMode;
+                            updateGameModeToggle();
+                            updateGameModeIndicator();
+                        }
+                        
                         // Update the lobby
                         updateLobby(data.players, data.spectators, data.hostId, data.gameRunning);
                         
@@ -755,6 +887,13 @@
                         console.log(`Role changed to ${role}`);
                         break;
                         
+                    case 'updateGameMode':
+                        // Update game mode settings
+                        gameState.gameMode = data.gameMode;
+                        updateGameModeToggle();
+                        updateGameModeIndicator();
+                        break;
+                        
                     case 'update':
                         // Update game state
                         gameState.players = data.players;
@@ -773,6 +912,11 @@
                         gameState.foods = data.foods;
                         gameState.spectators = data.spectators;
                         gameState.gameRunning = true;
+                        
+                        if (data.gameMode) {
+                            gameState.gameMode = data.gameMode;
+                            updateGameModeIndicator();
+                        }
                         
                         hideLobby();
                         hideGameOver();
@@ -897,7 +1041,7 @@
             const lobbyDiv = document.createElement('div');
             lobbyDiv.id = 'lobby';
             lobbyDiv.innerHTML = `
-                <h2>SNAKE BATTLE Lobby</h2>
+                <h2>STEALTH SNAKE Lobby</h2>
                 
                 <input type="text" id="player-name-input" placeholder="Enter your name">
                 
@@ -905,6 +1049,18 @@
                     <button id="set-name-button" class="lobby-button">Set Name</button>
                     <button id="toggle-role-button" class="lobby-button">Toggle Role</button>
                     <button id="start-game-button" class="lobby-button">Start Game</button>
+                </div>
+                
+                <!-- Game Mode Options -->
+                <div id="game-mode-options">
+                    <h3>Game Options</h3>
+                    <div class="mode-toggle">
+                        <label class="mode-toggle-slider">
+                            <input type="checkbox" id="stealth-mode-toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <label for="stealth-mode-toggle">Stealth Mode</label>
+                    </div>
                 </div>
                 
                 <h3>Players</h3>
@@ -921,8 +1077,47 @@
             document.getElementById('toggle-role-button').addEventListener('click', toggleRole);
             document.getElementById('start-game-button').addEventListener('click', startGame);
             
+            // Add game mode toggle event listener
+            const stealthToggle = document.getElementById('stealth-mode-toggle');
+            if (stealthToggle) {
+                stealthToggle.addEventListener('change', toggleStealthMode);
+                
+                // Set initial state
+                stealthToggle.checked = gameState.gameMode && gameState.gameMode.stealth;
+                
+                // Disable for non-hosts
+                stealthToggle.disabled = role !== 'Server Host';
+            }
+            
             // Set initial role button text
             updateRoleButton();
+        }
+        
+        // Update game mode toggle
+        function updateGameModeToggle() {
+            const stealthToggle = document.getElementById('stealth-mode-toggle');
+            if (stealthToggle) {
+                stealthToggle.checked = gameState.gameMode && gameState.gameMode.stealth;
+                stealthToggle.disabled = role !== 'Server Host';
+            }
+        }
+        
+        // Toggle stealth mode
+        function toggleStealthMode() {
+            if (role !== 'Server Host' || !ws || ws.readyState !== WebSocket.OPEN) return;
+            
+            const stealthToggle = document.getElementById('stealth-mode-toggle');
+            if (!stealthToggle) return;
+            
+            gameState.gameMode.stealth = stealthToggle.checked;
+            
+            // Send the updated game mode to server
+            ws.send(JSON.stringify({
+                type: 'updateGameMode',
+                gameMode: gameState.gameMode
+            }));
+            
+            updateGameModeIndicator();
         }
         
         // Show the lobby screen
@@ -983,6 +1178,9 @@
                 startButton.style.display = (role === 'Server Host' && !gameRunning) ? 'inline-block' : 'none';
             }
             
+            // Update game mode toggles based on role
+            updateGameModeToggle();
+            
             // Update role button
             updateRoleButton();
         }
@@ -1041,13 +1239,46 @@
             }
             
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'startGame' }));
+                ws.send(JSON.stringify({ 
+                    type: 'startGame',
+                    gameMode: gameState.gameMode // Send game mode settings
+                }));
             }
+        }
+        
+        // Check if a position is visible to the current player
+        function isPositionVisible(x, y) {
+            // If not in stealth mode, everything is visible
+            if (!gameState.gameMode || !gameState.gameMode.stealth) return true;
+            
+            // Spectators can see everything
+            if (role === 'Spectator') return true;
+            
+            // If this is the current player, check visibility distance from head
+            const player = gameState.players[playerId];
+            if (!player || !player.body || player.body.length === 0) return false;
+            
+            const head = player.body[0];
+            const distanceFromHead = Math.sqrt(
+                Math.pow(head.x - x, 2) + Math.pow(head.y - y, 2)
+            );
+            
+            if (distanceFromHead <= VISIBILITY_RADIUS) return true;
+            
+            // Food is always visible but with a smaller radius
+            for (const food of gameState.foods || []) {
+                const distanceFromFood = Math.sqrt(
+                    Math.pow(food.x - x, 2) + Math.pow(food.y - y, 2)
+                );
+                if (distanceFromFood <= FOOD_VISIBILITY_RADIUS) return true;
+            }
+            
+            return false;
         }
         
         // Draw the game state
         function drawGame() {
-            if (!canvas || !ctx) return;
+            if (!canvas || !ctx || !visibilityCanvas || !visCtx) return;
             
             // Clear canvas
             ctx.fillStyle = '#16213e';
@@ -1068,7 +1299,7 @@
                 ctx.stroke();
             }
             
-            // Draw food
+            // Draw food - Food is always visible
             (gameState.foods || []).forEach(food => {
                 ctx.beginPath();
                 ctx.arc(
@@ -1080,10 +1311,24 @@
                 );
                 ctx.fillStyle = food.type.color;
                 ctx.fill();
+                
+                // Draw a glow around food to make it more visible in darkness
+                const gradient = ctx.createRadialGradient(
+                    food.x * GRID_SIZE + GRID_SIZE / 2,
+                    food.y * GRID_SIZE + GRID_SIZE / 2,
+                    GRID_SIZE / 4,
+                    food.x * GRID_SIZE + GRID_SIZE / 2,
+                    food.y * GRID_SIZE + GRID_SIZE / 2,
+                    GRID_SIZE * FOOD_VISIBILITY_RADIUS
+                );
+                gradient.addColorStop(0, 'rgba(46, 204, 113, 0.3)');
+                gradient.addColorStop(1, 'rgba(46, 204, 113, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fill();
             });
             
             // Draw snakes
-            Object.values(gameState.players || {}).forEach(player => {
+            Object.entries(gameState.players || {}).forEach(([id, player]) => {
                 (player.body || []).forEach((segment, index) => {
                     const isHead = index === 0;
                     const isTail = index === player.body.length - 1;
@@ -1208,6 +1453,96 @@
             if (spectators.length > 0) {
                 ctx.fillText(`${spectators.length} Spectator${spectators.length > 1 ? 's' : ''}`, 10, canvas.height - 10);
             }
+            
+            // Draw visibility overlay if in stealth mode
+            if (gameState.gameMode && gameState.gameMode.stealth) {
+                drawVisibilityOverlay();
+            } else {
+                // Clear any existing visibility overlay
+                visCtx.clearRect(0, 0, visibilityCanvas.width, visibilityCanvas.height);
+            }
+            
+            // Update game mode indicator
+            updateGameModeIndicator();
+        }
+        
+        // Draw the visibility overlay (fog of war)
+        function drawVisibilityOverlay() {
+            if (!visibilityCanvas || !visCtx) return;
+            
+            // Clear visibility canvas
+            visCtx.clearRect(0, 0, visibilityCanvas.width, visibilityCanvas.height);
+            
+            // If spectator, don't apply fog of war
+            if (role === 'Spectator') {
+                return;
+            }
+            
+            // Draw a near pitch black overlay for fog of war
+            visCtx.fillStyle = `rgba(0, 0, 0, ${gameState.gameMode.stealthDarkness})`;
+            visCtx.fillRect(0, 0, visibilityCanvas.width, visibilityCanvas.height);
+            
+            // Set compositing mode to cut holes in the darkness
+            visCtx.globalCompositeOperation = 'destination-out';
+            
+            // Get player head position for visibility
+            const player = gameState.players[playerId];
+            if (player && player.body && player.body.length > 0) {
+                const head = player.body[0];
+                
+                // Draw visibility circle around player head
+                const gradient = visCtx.createRadialGradient(
+                    head.x * GRID_SIZE + GRID_SIZE / 2,
+                    head.y * GRID_SIZE + GRID_SIZE / 2,
+                    0,
+                    head.x * GRID_SIZE + GRID_SIZE / 2,
+                    head.y * GRID_SIZE + GRID_SIZE / 2,
+                    VISIBILITY_RADIUS * GRID_SIZE
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.7)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                visCtx.fillStyle = gradient;
+                visCtx.beginPath();
+                visCtx.arc(
+                    head.x * GRID_SIZE + GRID_SIZE / 2,
+                    head.y * GRID_SIZE + GRID_SIZE / 2,
+                    VISIBILITY_RADIUS * GRID_SIZE,
+                    0,
+                    Math.PI * 2
+                );
+                visCtx.fill();
+            }
+            
+            // Make food visible with smaller visibility circles
+            (gameState.foods || []).forEach(food => {
+                const gradient = visCtx.createRadialGradient(
+                    food.x * GRID_SIZE + GRID_SIZE / 2,
+                    food.y * GRID_SIZE + GRID_SIZE / 2,
+                    0,
+                    food.x * GRID_SIZE + GRID_SIZE / 2,
+                    food.y * GRID_SIZE + GRID_SIZE / 2,
+                    FOOD_VISIBILITY_RADIUS * GRID_SIZE
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.5)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                visCtx.fillStyle = gradient;
+                visCtx.beginPath();
+                visCtx.arc(
+                    food.x * GRID_SIZE + GRID_SIZE / 2,
+                    food.y * GRID_SIZE + GRID_SIZE / 2,
+                    FOOD_VISIBILITY_RADIUS * GRID_SIZE,
+                    0,
+                    Math.PI * 2
+                );
+                visCtx.fill();
+            });
+            
+            // Reset composite operation
+            visCtx.globalCompositeOperation = 'source-over';
         }
         
         // Update the scoreboard

@@ -17,14 +17,20 @@ const wss = new WebSocket.Server({ server });
 console.log(`Snake Battle Server running on port ${PORT}`);
 
 const GRID_SIZE = 20;
-const GRID_COUNT = 25;
-const GAME_SPEED = 150;
+const GRID_COUNT = 50; // Increased to 50x50 grid
+const GAME_SPEED = 130; // Slightly faster game speed for larger area
 const MAX_BULLETS = 3;
 const REFILL_INTERVAL = 60000; // 60 seconds
 const MAX_PLAYERS = 4;
 const FOOD_POINTS_FOR_KILLED_SNAKE = 5; // Number of food segments created when a snake is eliminated
 const POWERUP_SPAWN_CHANCE = 0.005; // 0.5% chance per tick to spawn a power-up (reduced from 2%)
-const MAX_POWERUPS = 3; // Maximum power-ups on the board at once
+const MAX_POWERUPS = 5; // Increased for larger area
+
+// Game mode settings
+let gameMode = {
+    stealth: true, // Default to stealth mode
+    stealthDarkness: 0.98 // 98% opacity (near pitch black)
+};
 
 // Game state
 let players = {}; // Active players (up to MAX_PLAYERS)
@@ -473,7 +479,8 @@ function getCurrentState() {
         activeBombs,
         eliminatedPlayers,
         gameRunning,
-        hostId
+        hostId,
+        gameMode // Include game mode in state
     };
 }
 
@@ -492,22 +499,22 @@ function adjustPlayerSpawn(playerId, playerIndex) {
     if (!player) return;
     switch (playerIndex % 4) {
         case 1: // Upper left, moving right
-            player.body = [{ x: 5, y: 5 }, { x: 4, y: 5 }, { x: 3, y: 5 }];
+            player.body = [{ x: 8, y: 8 }, { x: 7, y: 8 }, { x: 6, y: 8 }];
             player.direction = 'right';
             player.nextDirection = 'right';
             break;
         case 2: // Upper right, moving down
-            player.body = [{ x: 20, y: 5 }, { x: 20, y: 4 }, { x: 20, y: 3 }];
+            player.body = [{ x: 42, y: 8 }, { x: 42, y: 7 }, { x: 42, y: 6 }];
             player.direction = 'down';
             player.nextDirection = 'down';
             break;
         case 3: // Lower right, moving left
-            player.body = [{ x: 20, y: 20 }, { x: 21, y: 20 }, { x: 22, y: 20 }];
+            player.body = [{ x: 42, y: 42 }, { x: 43, y: 42 }, { x: 44, y: 42 }];
             player.direction = 'left';
             player.nextDirection = 'left';
             break;
         case 0: // Lower left, moving up
-            player.body = [{ x: 5, y: 20 }, { x: 5, y: 21 }, { x: 5, y: 22 }];
+            player.body = [{ x: 8, y: 42 }, { x: 8, y: 43 }, { x: 8, y: 44 }];
             player.direction = 'up';
             player.nextDirection = 'up';
             break;
@@ -580,7 +587,8 @@ function startGame() {
         activeBombs,
         remainingFood,
         gameRunning,
-        hostId
+        hostId,
+        gameMode // Include game mode in start message
     });
     console.log("Game started with", Object.keys(players).length, "players");
 }
@@ -602,7 +610,8 @@ function pauseGame() {
             powerups,
             activeBombs,
             remainingFood,
-            hostId
+            hostId,
+            gameMode // Include game mode
         });
         console.log("Game paused");
     }
@@ -628,7 +637,8 @@ function gameOver(message) {
         message, 
         finalScores,
         eliminatedPlayers,
-        hostId 
+        hostId,
+        gameMode // Include game mode
     });
     console.log("Game over:", message);
     setTimeout(() => {
@@ -639,7 +649,8 @@ function gameOver(message) {
             spectators, 
             hostId,
             eliminatedPlayers,
-            gameRunning: false
+            gameRunning: false,
+            gameMode // Include game mode
         });
     }, 5000);
 }
@@ -695,7 +706,8 @@ wss.on('connection', (ws, req) => {
         activeBombs,
         eliminatedPlayers,
         powerupTypes,
-        gameRunning
+        gameRunning,
+        gameMode // Include game mode
     }));
     broadcast({ 
         type: 'updateLobby', 
@@ -703,7 +715,8 @@ wss.on('connection', (ws, req) => {
         spectators, 
         hostId,
         eliminatedPlayers,
-        gameRunning
+        gameRunning,
+        gameMode // Include game mode
     });
 
     ws.on('message', (message) => {
@@ -767,7 +780,8 @@ wss.on('connection', (ws, req) => {
                     spectators, 
                     hostId,
                     eliminatedPlayers,
-                    gameRunning 
+                    gameRunning,
+                    gameMode // Include game mode
                 });
             }
             // Handle color change
@@ -787,7 +801,8 @@ wss.on('connection', (ws, req) => {
                     spectators, 
                     hostId,
                     eliminatedPlayers,
-                    gameRunning 
+                    gameRunning,
+                    gameMode // Include game mode
                 });
             }
             // Handle role change
@@ -803,7 +818,7 @@ wss.on('connection', (ws, req) => {
                     if (spectators[playerId]) {
                         const playerName = spectators[playerId].name;
                         delete spectators[playerId];
-                        const baseColor = `#${Math.floor(Math.random() * 0xFFFFFF).toString(16).toString(16).padStart(6, '0')}`;
+                        const baseColor = `#${Math.floor(Math.random() * 0xFFFFFF).toString(16).padStart(6, '0')}`;
                         const lighterColor = lightenColor(baseColor, 20);
                         const darkerColor = baseColor;
                         players[playerId] = {
@@ -844,7 +859,8 @@ wss.on('connection', (ws, req) => {
                     spectators, 
                     hostId,
                     eliminatedPlayers,
-                    gameRunning 
+                    gameRunning,
+                    gameMode // Include game mode
                 });
                 let newRole = players[playerId] ? 
                     (playerId === hostId ? 'Server Host' : 'Player') : 
@@ -856,6 +872,10 @@ wss.on('connection', (ws, req) => {
             } 
             // Handle game start (host only)
             else if (data.type === 'startGame' && playerId === hostId && !gameRunning) {
+                // Update game mode if provided
+                if (data.gameMode) {
+                    gameMode = data.gameMode;
+                }
                 startGame();
             }
             // Handle pause game (host only)
@@ -877,9 +897,19 @@ wss.on('connection', (ws, req) => {
                         activeBombs,
                         remainingFood,
                         gameRunning: true,
-                        hostId
+                        hostId,
+                        gameMode // Include game mode
                     });
                 }
+            }
+            // Handle game mode update (host only)
+            else if (data.type === 'updateGameMode' && playerId === hostId) {
+                gameMode = data.gameMode;
+                broadcast({
+                    type: 'updateGameMode',
+                    gameMode
+                });
+                console.log("Game mode updated:", gameMode);
             }
             // Handle chat messages
             else if (data.type === 'chatMessage' && data.message) {
@@ -920,7 +950,8 @@ wss.on('connection', (ws, req) => {
             spectators, 
             hostId,
             eliminatedPlayers,
-            gameRunning 
+            gameRunning,
+            gameMode // Include game mode
         });
     });
 });
@@ -1191,7 +1222,8 @@ function updateGame() {
         activeBombs,
         gameRunning,
         hostId,
-        justEliminated
+        justEliminated,
+        gameMode // Include game mode in updates
     });
 }
 
@@ -1202,7 +1234,12 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', players: Object.keys(players).length, gameRunning });
+    res.status(200).json({ 
+        status: 'ok', 
+        players: Object.keys(players).length, 
+        gameRunning,
+        gridSize: GRID_COUNT
+    });
 });
 
 // Start the server
