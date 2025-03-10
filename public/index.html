@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Multiplayer Snake Battle</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -57,6 +57,7 @@
                         0 0 50px rgba(255, 0, 0, 0.3);
             overflow: hidden;
             border: 3px solid #565695;
+            touch-action: none;
         }
         
         #game-canvas {
@@ -388,11 +389,6 @@
             font-size: 1.1rem;
             font-family: 'Orbitron', sans-serif;
             font-weight: bold;
-            border: nonemargin: 10px;
-            padding: 15px 30px;
-            font-size: 1.1rem;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
             border: none;
             border-radius: 50px;
             cursor: pointer;
@@ -435,6 +431,62 @@
             opacity: 1;
         }
         
+        /* Mobile Control Styles */
+        .mobile-control-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            background: rgba(231, 76, 60, 0.7);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .mobile-control-button:active {
+            background: rgba(231, 76, 60, 0.9);
+            transform: scale(0.95);
+        }
+        
+        .mobile-instructions {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+            color: #f1c40f;
+        }
+        
+        .swipe-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 36px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 50;
+            pointer-events: none;
+        }
+        
+        .swipe-indicator.show {
+            opacity: 0.7;
+            animation: fadeOut 0.8s forwards;
+        }
+        
+        @keyframes fadeOut {
+            0% { opacity: 0.7; }
+            100% { opacity: 0; }
+        }
+        
         @media (max-width: 550px) {
             h1 {
                 font-size: 1.5rem;
@@ -457,6 +509,12 @@
             #lobby {
                 width: 90%;
                 max-width: 400px;
+            }
+            
+            .mobile-control-button {
+                width: 60px;
+                height: 60px;
+                font-size: 20px;
             }
         }
     </style>
@@ -499,6 +557,7 @@
             <button id="restart-button">Play Again</button>
         </div>
         <div id="game-message" class="game-message"></div>
+        <div class="swipe-indicator"><i class="fas fa-arrow-up"></i></div>
     </div>
     
     <div id="instructions">
@@ -546,8 +605,51 @@
             gameRunning: false 
         };
         
+        // Mobile control variables
+        let isTouchDevice = false;
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        const MIN_SWIPE_DISTANCE = 30; // Minimum distance (px) to detect a swipe
+        let shootButton;
+        
+        // Initialize mobile controls
+        function initializeMobileControls() {
+            // Detect if device has touch capability
+            isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            
+            if (isTouchDevice) {
+                // Create and add shoot button
+                shootButton = document.createElement('div');
+                shootButton.id = 'shoot-button';
+                shootButton.className = 'mobile-control-button';
+                shootButton.innerHTML = '<i class="fas fa-crosshairs"></i>';
+                document.body.appendChild(shootButton);
+                
+                // Add mobile instructions
+                const mobileInstructions = document.createElement('div');
+                mobileInstructions.id = 'mobile-instructions';
+                mobileInstructions.className = 'mobile-instructions';
+                mobileInstructions.innerHTML = 'Swipe to move, tap button to shoot';
+                document.getElementById('instructions').appendChild(mobileInstructions);
+                
+                // Add touch event listeners to the game canvas
+                canvas.addEventListener('touchstart', handleTouchStart, false);
+                canvas.addEventListener('touchmove', handleTouchMove, false);
+                canvas.addEventListener('touchend', handleTouchEnd, false);
+                
+                // Add event listener to the shoot button
+                shootButton.addEventListener('touchstart', handleShoot, false);
+                
+                // Initially hide the shoot button
+                toggleMobileControls(false);
+            }
+        }
+        
         // Start the application
         window.onload = function() {
+            initializeMobileControls();
             showGameModeSelection();
             
             // Event listeners
@@ -584,6 +686,9 @@
             
             // Update connection status
             updateConnectionStatus('disconnected', 'Disconnected');
+            
+            // Hide mobile controls
+            toggleMobileControls(false);
         }
         
         // Join an existing game
@@ -774,6 +879,9 @@
                         finalScore.innerHTML = scoreHtml;
                         showGameOver();
                         
+                        // Hide mobile controls
+                        toggleMobileControls(false);
+                        
                         // If not a spectator, show the lobby after delay
                         if (role !== 'Spectator') {
                             setTimeout(() => {
@@ -875,6 +983,9 @@
                 createLobby();
             }
             document.getElementById('lobby').style.display = 'block';
+            
+            // Hide mobile controls in lobby
+            toggleMobileControls(false);
         }
         
         // Hide the lobby screen
@@ -882,6 +993,18 @@
             document.getElementById('game-container').style.display = 'block';
             document.getElementById('score-board').style.display = 'flex';
             document.getElementById('lobby').style.display = 'none';
+            
+            // Show mobile controls during gameplay
+            toggleMobileControls(true);
+        }
+        
+        // Toggle mobile control visibility
+        function toggleMobileControls(show) {
+            if (!isTouchDevice) return;
+            
+            if (shootButton) {
+                shootButton.style.display = show ? 'flex' : 'none';
+            }
         }
         
         // Update the lobby player lists
@@ -1189,7 +1312,7 @@
                 document.querySelector('#p2-score h3').innerHTML = 
                     `<i class="fas fa-fire status-icon"></i>${opponent.name || 'Opponent'}`;
                 document.getElementById('p2-score-value').textContent = opponent.score || 0;
-                document.getElementById('p2-length').textContent = opponent.body ? opponent.body.length :document.getElementById('p2-length').textContent = opponent.body ? opponent.body.length : 0;
+                document.getElementById('p2-length').textContent = opponent.body ? opponent.body.length : 0;
                 
                 // Update bullet display
                 let bulletsHtml = '';
@@ -1239,6 +1362,115 @@
             statusDot.className = 'status-dot ' + status;
             statusText.textContent = text;
         }
+        
+        // Mobile touch handlers
+        function handleTouchStart(event) {
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+            event.preventDefault();
+        }
+
+        function handleTouchMove(event) {
+            if (!touchStartX || !touchStartY) {
+                return;
+            }
+            event.preventDefault();
+        }
+
+        function handleTouchEnd(event) {
+            touchEndX = event.changedTouches[0].clientX;
+            touchEndY = event.changedTouches[0].clientY;
+            detectSwipe();
+            event.preventDefault();
+        }
+
+        function detectSwipe() {
+            if (!gameState.gameRunning || !ws || ws.readyState !== WebSocket.OPEN) return;
+            
+            const swipeDistanceX = touchEndX - touchStartX;
+            const swipeDistanceY = touchEndY - touchStartY;
+            
+            // Ensure minimum swipe distance
+            if (Math.abs(swipeDistanceX) < MIN_SWIPE_DISTANCE && Math.abs(swipeDistanceY) < MIN_SWIPE_DISTANCE) {
+                return;
+            }
+            
+            let direction;
+            
+            // Check if the swipe is more horizontal or vertical
+            if (Math.abs(swipeDistanceX) > Math.abs(swipeDistanceY)) {
+                // Horizontal swipe
+                if (swipeDistanceX > 0) {
+                    direction = 'right';
+                    showSwipeIndicator('right');
+                } else {
+                    direction = 'left';
+                    showSwipeIndicator('left');
+                }
+            } else {
+                // Vertical swipe
+                if (swipeDistanceY > 0) {
+                    direction = 'down';
+                    showSwipeIndicator('down');
+                } else {
+                    direction = 'up';
+                    showSwipeIndicator('up');
+                }
+            }
+            
+            if (direction && (role === 'Player' || role === 'Server Host')) {
+                ws.send(JSON.stringify({ type: 'direction', direction }));
+            }
+            
+            // Reset touch coordinates
+            touchStartX = 0;
+            touchStartY = 0;
+            touchEndX = 0;
+            touchEndY = 0;
+        }
+
+        function handleShoot(event) {
+            if (gameState.gameRunning && ws && ws.readyState === WebSocket.OPEN && 
+                (role === 'Player' || role === 'Server Host')) {
+                ws.send(JSON.stringify({ type: 'shoot' }));
+            }
+            event.preventDefault();
+        }
+
+        function showSwipeIndicator(direction) {
+            const indicator = document.querySelector('.swipe-indicator');
+            if (!indicator) return;
+            
+            let iconClass = 'fa-arrow-up';
+            
+            switch (direction) {
+                case 'right':
+                    iconClass = 'fa-arrow-right';
+                    break;
+                case 'left':
+                    iconClass = 'fa-arrow-left';
+                    break;
+                case 'down':
+                    iconClass = 'fa-arrow-down';
+                    break;
+                case 'up':
+                default:
+                    iconClass = 'fa-arrow-up';
+                    break;
+            }
+            
+            indicator.innerHTML = `<i class="fas ${iconClass}"></i>`;
+            indicator.classList.remove('show');
+            void indicator.offsetWidth; // Force reflow to restart animation
+            indicator.classList.add('show');
+        }
+        
+        // Prevent default touchmove behavior to avoid scrolling while playing
+        document.addEventListener('touchmove', function(event) {
+            if (gameState.gameRunning && event.target.id === 'game-canvas') {
+                event.preventDefault();
+            }
+        }, { passive: false });
         
         // Clean up resources before unloading the page
         window.addEventListener('beforeunload', () => {
