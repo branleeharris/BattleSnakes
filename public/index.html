@@ -618,8 +618,10 @@
 
     <script>
         // Constants
-        const GRID_SIZE = 14; // Smaller grid size for larger play area
-        const GRID_COUNT = 50; // Much larger grid count (50x50 grid)
+        // Use the server's grid count (25) but simply scale everything for display
+        const SERVER_GRID_COUNT = 25; // This must match the server's value
+        const DISPLAY_GRID_COUNT = 25; // Keep this to maintain server compatibility
+        const GRID_SIZE = 700 / DISPLAY_GRID_COUNT; // 28px per grid cell
         const MAX_BULLETS = 3;
         const VISIBILITY_RADIUS = 5; // Grid cells visible around player's head
         const FOOD_VISIBILITY_RADIUS = 3; // Grid cells visible around food
@@ -1287,7 +1289,7 @@
             // Draw grid lines
             ctx.strokeStyle = '#30385e';
             ctx.lineWidth = 0.5;
-            for (let i = 0; i <= GRID_COUNT; i++) {
+            for (let i = 0; i <= DISPLAY_GRID_COUNT; i++) {
                 ctx.beginPath();
                 ctx.moveTo(i * GRID_SIZE, 0);
                 ctx.lineTo(i * GRID_SIZE, canvas.height);
@@ -1453,6 +1455,11 @@
             if (spectators.length > 0) {
                 ctx.fillText(`${spectators.length} Spectator${spectators.length > 1 ? 's' : ''}`, 10, canvas.height - 10);
             }
+            
+            // Draw a border to show the server's actual grid boundaries
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, SERVER_GRID_COUNT * GRID_SIZE, SERVER_GRID_COUNT * GRID_SIZE);
             
             // Draw visibility overlay if in stealth mode
             if (gameState.gameMode && gameState.gameMode.stealth) {
